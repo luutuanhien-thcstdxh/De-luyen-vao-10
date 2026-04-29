@@ -11,8 +11,8 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
     
     <!-- Chosen Palette: Indigo, Slate, Emerald (for correct), Rose (for incorrect) -->
-    <!-- Application Structure Plan: Bố cục 2 cột. Trái: Hướng dẫn cấu trúc & Bảng điều khiển kết quả. Phải: Khu vực làm bài. -->
-    <!-- Visualization & Content Choices: Custom UI Modal thay thế JS confirm() để tương thích tốt với môi trường Iframe. Pie Chart hiển thị kết quả. -->
+    <!-- Application Structure Plan: Bố cục 2 cột. Trái: Hướng dẫn cấu trúc & Bảng điều khiển kết quả. Phải: Khu vực làm bài. Hệ thống chấm điểm tự động cả 3 phần. -->
+    <!-- Visualization & Content Choices: Custom UI Modal thay thế JS confirm() để tương thích tốt với môi trường Iframe. Pie Chart hiển thị kết quả. Regex để tự động chấm Phần 3. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. NO alert/confirm used. -->
 
     <style>
@@ -81,8 +81,8 @@
                         <div class="text-xl font-bold text-amber-900" id="score-p2">0 / 4.0</div>
                     </div>
                     <div class="bg-sky-50 p-3 rounded-xl border border-sky-100 flex flex-col justify-center">
-                        <div class="text-xs text-sky-600 font-bold uppercase mb-1">Phần III <span id="p3-status" class="text-amber-500 font-normal block tracking-tighter normal-case">(Cần tự chấm)</span></div>
-                        <div class="text-xl font-bold text-sky-900" id="score-p3">0.00 / 3.0</div>
+                        <div class="text-xs text-sky-600 font-bold uppercase mb-1">Phần III</div>
+                        <div class="text-xl font-bold text-sky-900" id="score-p3">0 / 3.0</div>
                     </div>
                     <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-center">
                         <div class="text-[11px] text-emerald-700 font-bold uppercase mb-1">Tổng Điểm</div>
@@ -95,8 +95,8 @@
                 </div>
                 
                 <div class="bg-emerald-50 text-emerald-800 p-4 rounded-xl border border-emerald-200 text-sm font-medium leading-relaxed">
-                    <p>💡 <strong>Hướng dẫn:</strong> Hệ thống đã tự động chấm Phần I & II. Kéo xuống xem các câu sai (màu đỏ) và đối chiếu lời giải. <br><br>
-                    👉 <strong>Đặc biệt:</strong> Hãy chuyển sang tab <strong>Phần III</strong>, xem lời giải và bấm nút tự chấm điểm (Đúng/Sai) cho từng bài để hệ thống cập nhật điểm tổng kết 10đ nhé!</p>
+                    <p>💡 <strong>Hướng dẫn:</strong> Hệ thống đã tự động chấm toàn bộ bài làm của bạn (Phần I, II, III). <br><br>
+                    👉 Hãy di chuyển giữa các tab Phần I, II, III, kéo xuống xem các câu sai (màu đỏ) và bấm <strong>Xem Lời Giải</strong> để rút kinh nghiệm nhé!</p>
                 </div>
             </div>
 
@@ -126,7 +126,7 @@
                                 <span class="flex items-center gap-2 font-semibold text-emerald-600"><span class="text-xl">3️⃣</span> Phần III</span> 
                                 <span class="font-bold text-slate-800">6 câu (3.0đ)</span>
                             </div>
-                            <div class="text-xs text-slate-500 mt-1 pl-8">Mỗi câu đúng được cộng 0.5 điểm. <br>(Phần này học sinh tự chấm sau khi nộp)</div>
+                            <div class="text-xs text-slate-500 mt-1 pl-8">Mỗi câu đúng được cộng 0.5 điểm. <br>(Hệ thống trích xuất số liệu từ câu trả lời của bạn để chấm điểm tự động)</div>
                         </li>
                     </ul>
                 </div>
@@ -260,12 +260,12 @@
                 title: "Phần III. Câu Trả Lời Ngắn",
                 intro: "Thí sinh điền đáp án/ trả lời ngắn gọn vào chỗ trống hoặc trình bày vắn tắt.",
                 questions: [
-                    { id: 17, text: "Một chiếc thang dài $5m$ được dựa vào một bức tường đứng thẳng. Biết góc tạo bởi chiếc thang và mặt đất là $65^\\circ$. Tính khoảng cách từ chân thang đến chân tường (làm tròn đến chữ số thập phân thứ hai).", sol: "Khoảng cách $= 5 \\cdot \\cos 65^\\circ \\approx 2,11$ m." },
-                    { id: 18, text: "Một người quan sát đứng cách chân một tòa tháp $20m$ nhìn lên đỉnh tháp với góc nâng $60^\\circ$. Biết khoảng cách từ mắt người quan sát đến mặt đất là $1,6m$. Tính chiều cao của tòa tháp (làm tròn đến chữ số thập phân thứ hai).", sol: "Chiều cao $= 20 \\cdot \\tan 60^\\circ + 1,6 \\approx 36,24$ m." },
-                    { id: 19, text: "Bác An gửi tiết kiệm $300$ triệu đồng vào ngân hàng với kỳ hạn $1$ năm, lãi suất $6\\%$/năm theo hình thức lãi kép. Hỏi sau đúng $2$ năm, bác An rút cả vốn lẫn lãi được bao nhiêu triệu đồng?", sol: "$T = 300 \\cdot (1 + 0,06)^2 = 337,08$ triệu đồng." },
-                    { id: 20, text: "Gọi $x_1, x_2$ là hai nghiệm của phương trình $x^2 - 5x + 3 = 0$. Tính giá trị của biểu thức $T = x_1^2 + x_2^2$.", sol: "$T = (x_1+x_2)^2 - 2x_1x_2 = 5^2 - 2(3) = 19$." },
-                    { id: 21, text: "Hai vòi nước cùng chảy vào một bể không có nước thì sau $6$ giờ đầy bể. Nếu mở vòi 1 chảy trong $2$ giờ, vòi 2 chảy trong $3$ giờ thì được $\\frac{2}{5}$ bể. Hỏi vòi 1 chảy một mình đầy bể trong bao lâu?", sol: "Giải hệ phương trình ta tìm được thời gian Vòi 1 chảy một mình đầy bể là 10 giờ." },
-                    { id: 22, text: "Một quả bóng đá tiêu chuẩn có dạng hình cầu với bán kính khoảng $11cm$. Tính thể tích của quả bóng đó (Lấy $\\pi \\approx 3,14$ và làm tròn đến hàng đơn vị).", sol: "$V = \\frac{4}{3} \\cdot 3,14 \\cdot 11^3 \\approx 5572 \\text{ cm}^3$." }
+                    { id: 17, text: "Một chiếc thang dài $5m$ được dựa vào một bức tường đứng thẳng. Biết góc tạo bởi chiếc thang và mặt đất là $65^\\circ$. Tính khoảng cách từ chân thang đến chân tường (làm tròn đến chữ số thập phân thứ hai).", sol: "Khoảng cách $= 5 \\cdot \\cos 65^\\circ \\approx 2,11$ m.", exactAns: ["2.11", "2,11"] },
+                    { id: 18, text: "Một người quan sát đứng cách chân một tòa tháp $20m$ nhìn lên đỉnh tháp với góc nâng $60^\\circ$. Biết khoảng cách từ mắt người quan sát đến mặt đất là $1,6m$. Tính chiều cao của tòa tháp (làm tròn đến chữ số thập phân thứ hai).", sol: "Chiều cao $= 20 \\cdot \\tan 60^\\circ + 1,6 \\approx 36,24$ m.", exactAns: ["36.24", "36,24"] },
+                    { id: 19, text: "Bác An gửi tiết kiệm $300$ triệu đồng vào ngân hàng với kỳ hạn $1$ năm, lãi suất $6\\%$/năm theo hình thức lãi kép. Hỏi sau đúng $2$ năm, bác An rút cả vốn lẫn lãi được bao nhiêu triệu đồng?", sol: "$T = 300 \\cdot (1 + 0,06)^2 = 337,08$ triệu đồng.", exactAns: ["337.08", "337,08"] },
+                    { id: 20, text: "Gọi $x_1, x_2$ là hai nghiệm của phương trình $x^2 - 5x + 3 = 0$. Tính giá trị của biểu thức $T = x_1^2 + x_2^2$.", sol: "$T = (x_1+x_2)^2 - 2x_1x_2 = 5^2 - 2(3) = 19$.", exactAns: ["19"] },
+                    { id: 21, text: "Hai vòi nước cùng chảy vào một bể không có nước thì sau $6$ giờ đầy bể. Nếu mở vòi 1 chảy trong $2$ giờ, vòi 2 chảy trong $3$ giờ thì được $\\frac{2}{5}$ bể. Hỏi vòi 1 chảy một mình đầy bể trong bao lâu?", sol: "Giải hệ phương trình ta tìm được thời gian Vòi 1 chảy một mình đầy bể là 10 giờ.", exactAns: ["10"] },
+                    { id: 22, text: "Một quả bóng đá tiêu chuẩn có dạng hình cầu với bán kính khoảng $11cm$. Tính thể tích của quả bóng đó (Lấy $\\pi \\approx 3,14$ và làm tròn đến hàng đơn vị).", sol: "$V = \\frac{4}{3} \\cdot 3,14 \\cdot 11^3 \\approx 5572 \\text{ cm}^3$.", exactAns: ["5572"] }
                 ]
             }
         };
@@ -280,11 +280,12 @@
             part1: {}, 
             part2: {}, 
             part3: {}, 
-            part3Grade: {} // Stores true/false for self-grading
+            part3Grade: {} // Auto-populated on submission
         };
 
         window.p1Score = 0;
         window.p2Score = 0;
+        window.p3Score = 0;
 
         // --- DOM Elements ---
         const contentArea = document.getElementById('content-area');
@@ -510,6 +511,28 @@
             examData.part3.questions.forEach((q) => {
                 const uAns = userAnswers.part3[q.id] || '';
                 
+                let gradingHtml = '';
+                if (isSubmitted) {
+                    const statusVal = userAnswers.part3Grade[q.id];
+                    let gradeClass = 'bg-slate-50 border-slate-200 text-slate-500';
+                    let gradeText = 'Chưa làm (0đ)';
+                    
+                    if (statusVal === true) {
+                        gradeClass = 'bg-emerald-50 border-emerald-200 text-emerald-700';
+                        gradeText = 'Đúng (+0.5đ)';
+                    } else if (statusVal === false) {
+                        gradeClass = 'bg-rose-50 border-rose-200 text-rose-700';
+                        gradeText = 'Sai (0đ)';
+                    }
+
+                    gradingHtml = `
+                        <div class="flex items-center justify-between sm:justify-end gap-3 px-4 py-2.5 rounded-xl border w-full sm:w-auto ${gradeClass}">
+                            <span class="text-sm font-semibold">Hệ thống chấm:</span>
+                            <span class="font-bold text-base">${gradeText}</span>
+                        </div>
+                    `;
+                }
+                
                 html += `
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow mb-6">
                         <div class="flex items-center justify-between mb-4 border-b pb-3">
@@ -518,10 +541,10 @@
                         <div class="text-slate-800 mb-5 math-block text-base leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100">${q.text}</div>
                         
                         <div class="mb-5">
-                            <label class="block text-sm font-semibold text-slate-600 mb-2">Đáp án của bạn:</label>
+                            <label class="block text-sm font-semibold text-slate-600 mb-2">Đáp án của bạn (chỉ điền số hoặc nội dung ngắn gọn):</label>
                             <textarea 
                                 placeholder="Nhập kết quả cuối cùng hoặc các bước tính..." 
-                                class="w-full border border-slate-300 rounded-xl p-4 text-sm h-20 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-slate-50 disabled:bg-slate-100 disabled:text-slate-500"
+                                class="w-full border border-slate-300 rounded-xl p-4 text-sm h-20 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-slate-50 disabled:bg-slate-100 disabled:text-slate-700 disabled:font-medium"
                                 oninput="saveAnswer3(${q.id}, this.value)"
                                 ${isSubmitted ? 'disabled' : ''}
                             >${uAns}</textarea>
@@ -533,13 +556,7 @@
                                 <span>👁️</span> Xem Lời Giải
                             </button>
                             
-                            <div class="flex items-center justify-between sm:justify-end gap-3 bg-amber-50 px-4 py-2 rounded-lg border border-amber-200 w-full sm:w-auto">
-                                <span class="text-sm font-bold text-amber-800">Tự chấm:</span>
-                                <div class="flex gap-2">
-                                    <button onclick="setSelfGrade(${q.id}, true)" id="btn-grade-true-${q.id}" class="${userAnswers.part3Grade[q.id] === true ? 'bg-emerald-500 text-white' : 'border border-emerald-500 text-emerald-700 bg-white hover:bg-emerald-50'} px-3 py-1 rounded-md transition font-medium text-sm">Đúng (+0.5đ)</button>
-                                    <button onclick="setSelfGrade(${q.id}, false)" id="btn-grade-false-${q.id}" class="${userAnswers.part3Grade[q.id] === false ? 'bg-rose-500 text-white' : 'border border-rose-500 text-rose-700 bg-white hover:bg-rose-50'} px-3 py-1 rounded-md transition font-medium text-sm">Sai (0đ)</button>
-                                </div>
-                            </div>
+                            ${gradingHtml}
                         </div>
                         <div id="sol-${q.id}" class="solution-block mt-4">
                             <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
@@ -576,23 +593,6 @@
             userAnswers.part3[qId] = text;
         }
 
-        window.setSelfGrade = function(qId, isCorrect) {
-            userAnswers.part3Grade[qId] = isCorrect;
-            
-            const btnTrue = document.getElementById(`btn-grade-true-${qId}`);
-            const btnFalse = document.getElementById(`btn-grade-false-${qId}`);
-            
-            if (isCorrect) {
-                btnTrue.className = "bg-emerald-500 text-white px-3 py-1 rounded-md transition font-medium text-sm";
-                btnFalse.className = "border border-rose-500 text-rose-700 bg-white hover:bg-rose-50 px-3 py-1 rounded-md transition font-medium text-sm";
-            } else {
-                btnTrue.className = "border border-emerald-500 text-emerald-700 bg-white hover:bg-emerald-50 px-3 py-1 rounded-md transition font-medium text-sm";
-                btnFalse.className = "bg-rose-500 text-white px-3 py-1 rounded-md transition font-medium text-sm";
-            }
-            
-            updateTotalScore();
-        }
-
         window.toggleSolutionBlock = function(id, btnElement) {
             const solBlock = document.getElementById(id);
             if (solBlock.classList.contains('show')) {
@@ -614,12 +614,16 @@
             
             const answeredP1 = Object.keys(userAnswers.part1).length;
             const answeredP2 = Object.keys(userAnswers.part2).length;
-            const totalRequired = examData.part1.questions.length + (examData.part2.questions.length * 4);
+            const answeredP3 = Object.keys(userAnswers.part3).filter(k => userAnswers.part3[k].trim() !== '').length;
             
-            if (answeredP1 + answeredP2 < totalRequired) {
-                confirmMessage.innerHTML = `Bạn mới làm <strong>${answeredP1 + answeredP2}/${totalRequired}</strong> ý trắc nghiệm. Vẫn còn câu chưa làm.<br><br>Bạn có chắc chắn muốn nộp bài ngay lúc này?`;
+            const totalP1P2 = examData.part1.questions.length + (examData.part2.questions.length * 4);
+            const totalQuestions = totalP1P2 + examData.part3.questions.length;
+            const totalAnswered = answeredP1 + answeredP2 + answeredP3;
+            
+            if (totalAnswered < totalQuestions) {
+                confirmMessage.innerHTML = `Bạn mới làm <strong>${totalAnswered}/${totalQuestions}</strong> câu/ý. Vẫn còn câu chưa làm.<br><br>Bạn có chắc chắn muốn nộp bài ngay lúc này?`;
             } else {
-                confirmMessage.innerHTML = "Bạn đã hoàn thành các câu trắc nghiệm. Xác nhận nộp bài để xem điểm?";
+                confirmMessage.innerHTML = "Bạn đã hoàn thành tất cả các câu hỏi. Xác nhận nộp bài để xem điểm?";
             }
             
             confirmModal.classList.remove('hidden');
@@ -681,22 +685,54 @@
                 else if (qCorrect === 4) window.p2Score += 1.0;
             });
 
-            // Initial Part 3 calculation & DOM update
-            userAnswers.part3Grade = {}; 
+            // Auto-grade Part 3 via number extraction
+            window.p3Score = 0;
+            let p3Correct = 0, p3Incorrect = 0, p3Unanswered = 0;
+            examData.part3.questions.forEach(q => {
+                const uAns = (userAnswers.part3[q.id] || '').trim();
+                if (!uAns) {
+                    p3Unanswered++;
+                    userAnswers.part3Grade[q.id] = undefined;
+                } else {
+                    let isCorrect = false;
+                    // Chuẩn hóa dấu phẩy thành dấu chấm
+                    const normalizedUAns = uAns.replace(/,/g, '.');
+                    // Trích xuất tất cả các con số (bao gồm số thập phân) từ đáp án học sinh nhập
+                    const numbersInAns = normalizedUAns.match(/\d+(\.\d+)?/g) || [];
+                    
+                    q.exactAns.forEach(ans => {
+                        const standardAns = ans.replace(/,/g, '.');
+                        if (numbersInAns.includes(standardAns)) {
+                            isCorrect = true;
+                        }
+                    });
+                    
+                    if (isCorrect) {
+                        p3Correct++;
+                        window.p3Score += 0.5;
+                        userAnswers.part3Grade[q.id] = true;
+                    } else {
+                        p3Incorrect++;
+                        userAnswers.part3Grade[q.id] = false;
+                    }
+                }
+            });
+
+            // Update Total Score DOM
             updateTotalScore(); 
 
             // Show Result Dashboard
             document.getElementById('structure-info').style.display = 'none';
             resultDashboard.classList.add('show');
 
-            // Draw Chart
+            // Draw Chart combining all 3 parts
             const ctx = document.getElementById('resultChart').getContext('2d');
             resultChartInstance = new Chart(ctx, {
                 type: 'pie',
                 data: {
-                    labels: ['Ý đúng', 'Ý sai', 'Chưa làm'],
+                    labels: ['Ý/Câu đúng', 'Ý/Câu sai', 'Chưa làm'],
                     datasets: [{
-                        data: [p1Correct + p2Correct, p1Incorrect + p2Incorrect, p1Unanswered + p2Unanswered],
+                        data: [p1Correct + p2Correct + p3Correct, p1Incorrect + p2Incorrect + p3Incorrect, p1Unanswered + p2Unanswered + p3Unanswered],
                         backgroundColor: ['#10b981', '#f43f5e', '#cbd5e1'],
                         borderWidth: 2,
                         borderColor: '#ffffff',
@@ -717,38 +753,18 @@
                 }
             });
 
-            // Switch to Part 1 for review and scroll up
-            currentActiveTab = 'part1';
-            tabBtns.forEach(b => {
-                b.classList.remove('active', 'border-indigo-600', 'text-indigo-600');
-                if(b.getAttribute('data-target') === 'part1') b.classList.add('active', 'border-indigo-600', 'text-indigo-600');
-            });
-            
+            // Stay on current tab and re-render to show solutions
             renderTab(currentActiveTab);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         window.updateTotalScore = function() {
-            let p3Score = 0;
-            let p3GradedCount = 0;
-            examData.part3.questions.forEach(q => {
-                if (userAnswers.part3Grade[q.id] === true) p3Score += 0.5;
-                if (userAnswers.part3Grade[q.id] !== undefined) p3GradedCount++;
-            });
-            
             document.getElementById('score-p1').innerText = `${window.p1Score.toFixed(2)} / 3.0`;
             document.getElementById('score-p2').innerText = `${window.p2Score.toFixed(2)} / 4.0`;
-            document.getElementById('score-p3').innerText = `${p3Score.toFixed(2)} / 3.0`;
+            document.getElementById('score-p3').innerText = `${window.p3Score.toFixed(2)} / 3.0`;
             
-            const totalScore = (window.p1Score + window.p2Score + p3Score).toFixed(2);
+            const totalScore = (window.p1Score + window.p2Score + window.p3Score).toFixed(2);
             document.getElementById('score-total').innerText = totalScore;
-            
-            if (p3GradedCount === 6) {
-                const statusEl = document.getElementById('p3-status');
-                statusEl.innerText = "(Đã chấm xong)";
-                statusEl.classList.replace('text-amber-500', 'text-emerald-600');
-                statusEl.classList.add('font-bold');
-            }
         }
 
         document.addEventListener('DOMContentLoaded', initApp);
