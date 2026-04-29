@@ -3,29 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nền Tảng Ôn Thi Toán 10 THPT</title>
+    <title>Nền Tảng Ôn Thi Toán 10 THPT - Thi Thử</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
     
-    <!-- Chosen Palette: Indigo & Slate -->
-    <!-- Application Structure Plan: Cấu trúc ứng dụng được chia thành dạng Dashboard học tập. Cột bên trái hiển thị phân tích cấu trúc đề thi bằng biểu đồ Donut và tóm tắt thông tin giúp người dùng nắm bắt trọng tâm bài thi. Cột bên phải là khu vực luyện tập tương tác (Không gian luyện tập), chia làm 3 tab tương ứng với 3 phần của đề thi thật (Trắc nghiệm 12 câu, Đúng/Sai 4 câu, Trả lời ngắn 6 câu). Cấu trúc này tối ưu hóa cho việc học chủ động: người dùng được định hướng chiến lược học tập qua biểu đồ trước, sau đó tự thực hành và tra cứu lời giải thay vì chỉ đọc văn bản thụ động. -->
-    <!-- Visualization & Content Choices: Cấu trúc đề thi -> Goal: Inform -> Viz/Presentation Method: Donut Chart (Chart.js) -> Interaction: Hover to see exact numbers -> Justification: Giúp học sinh hình dung trực quan tỷ trọng các phần thi. Phần bài tập -> Goal: Practice/Compare -> Viz/Presentation Method: Interactive Cards -> Interaction: Click chọn đáp án, Tab navigation, Toggle lời giải -> Justification: Tăng tính tương tác, khuyến khích tự suy nghĩ trước khi xem đáp án. Không sử dụng SVG/Mermaid. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- Chosen Palette: Indigo, Slate, Emerald (for correct), Rose (for incorrect) -->
+    <!-- Application Structure Plan: Bố cục 2 cột. Trái: Hướng dẫn cấu trúc & Bảng điều khiển kết quả. Phải: Khu vực làm bài. -->
+    <!-- Visualization & Content Choices: Custom UI Modal thay thế JS confirm() để tương thích tốt với môi trường Iframe. Pie Chart hiển thị kết quả. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. NO alert/confirm used. -->
 
     <style>
         body { background-color: #f8fafc; color: #1e293b; font-family: system-ui, -apple-system, sans-serif; }
-        .chart-container { position: relative; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
+        .chart-container { position: relative; width: 100%; max-width: 300px; margin-left: auto; margin-right: auto; height: 220px; }
         .math-block { overflow-x: auto; padding-bottom: 0.5rem; }
         .tab-btn.active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
         .solution-block { display: none; }
         .solution-block.show { display: block; animation: slideDown 0.3s ease-out forwards; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        input[type="radio"]:checked + label { background-color: #e0e7ff; border-color: #6366f1; color: #3730a3; }
-        .tf-btn.active-true { background-color: #10b981; color: white; border-color: #10b981; }
-        .tf-btn.active-false { background-color: #ef4444; color: white; border-color: #ef4444; }
+        
+        /* Interactive States for Testing */
+        input[type="radio"]:checked + label:not(.submitted-label) { background-color: #e0e7ff; border-color: #6366f1; color: #3730a3; }
+        input[type="radio"]:checked + label:not(.submitted-label) .opt-badge { background-color: #4f46e5; color: white; }
+        
+        .tf-btn.active-true:not(.submitted-tf) { background-color: #10b981; color: white; border-color: #10b981; }
+        .tf-btn.active-false:not(.submitted-tf) { background-color: #ef4444; color: white; border-color: #ef4444; }
+        
+        /* Post-Submission Styles */
+        .ans-correct { background-color: #ecfdf5 !important; border-color: #10b981 !important; color: #065f46 !important; border-width: 2px !important; font-weight: 600; }
+        .ans-correct .opt-badge { background-color: #10b981 !important; color: white !important; }
+        .ans-incorrect { background-color: #fff1f2 !important; border-color: #f43f5e !important; color: #9f1239 !important; border-width: 2px !important; }
+        .ans-incorrect .opt-badge { background-color: #f43f5e !important; color: white !important; }
+        
+        #result-dashboard { display: none; }
+        #result-dashboard.show { display: block; animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body class="min-h-screen">
@@ -33,12 +47,15 @@
     <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <h1 class="text-2xl font-bold flex items-center gap-2">
-                <span class="text-3xl">🎓</span> Đề tự luyện vào lớp 10 THPT - Môn Toán - THCS Tân Dương, xã Xuân Hòa, tỉnh Lào Cai
+                <span class="text-3xl">📝</span> Đề tự luyện vào 10 THPT, trường THCS Tân Dương, xã Xuân Hòa, tỉnh Lào Cai
             </h1>
             <div class="flex items-center gap-3">
-                <span class="bg-indigo-800 text-indigo-100 text-sm font-semibold px-4 py-2 rounded-full flex items-center gap-2">
-                    <span>⏱️</span> Thời gian: 90 phút
-                </span>
+                <div class="bg-indigo-900 border border-indigo-500 text-indigo-50 text-lg font-mono font-bold px-5 py-2 rounded-xl flex items-center gap-2 shadow-inner">
+                    <span>⏳</span> <span id="timer-display">90:00</span>
+                </div>
+                <button id="submit-header-btn" onclick="openConfirmModal()" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-2 px-6 rounded-xl shadow-md transition-transform hover:scale-105 active:scale-95 whitespace-nowrap">
+                    Nộp Bài
+                </button>
             </div>
         </div>
     </header>
@@ -46,44 +63,71 @@
     <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         <aside class="lg:col-span-4 flex flex-col gap-6">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <h2 class="text-xl font-bold text-slate-800 mb-2 border-b pb-3 flex items-center gap-2">
-                    <span>📊</span> Phân Tích Cấu Trúc Đề
+            
+            <!-- Result Dashboard (Hidden initially) -->
+            <div id="result-dashboard" class="bg-white rounded-3xl shadow-lg border-2 border-emerald-500 p-5 overflow-hidden relative">
+                <div class="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2 flex items-center gap-2">
+                    <span>🏆</span> Kết Quả Bài Làm
                 </h2>
-                <p class="text-sm text-slate-600 mb-6 mt-3">
-                    Biểu đồ dưới đây thể hiện số lượng câu hỏi phân bổ theo định dạng thi mới (Tổng cộng 22 câu).
-                </p>
-                <div class="chart-container">
-                    <canvas id="examStructureChart"></canvas>
+                
+                <div class="grid grid-cols-2 lg:grid-cols-2 gap-3 text-center mb-6 mt-4">
+                    <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 flex flex-col justify-center">
+                        <div class="text-xs text-indigo-600 font-bold uppercase mb-1">Phần I</div>
+                        <div class="text-xl font-bold text-indigo-900" id="score-p1">0 / 3.0</div>
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 flex flex-col justify-center">
+                        <div class="text-xs text-amber-600 font-bold uppercase mb-1">Phần II</div>
+                        <div class="text-xl font-bold text-amber-900" id="score-p2">0 / 4.0</div>
+                    </div>
+                    <div class="bg-sky-50 p-3 rounded-xl border border-sky-100 flex flex-col justify-center">
+                        <div class="text-xs text-sky-600 font-bold uppercase mb-1">Phần III <span id="p3-status" class="text-amber-500 font-normal block tracking-tighter normal-case">(Cần tự chấm)</span></div>
+                        <div class="text-xl font-bold text-sky-900" id="score-p3">0.00 / 3.0</div>
+                    </div>
+                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-center">
+                        <div class="text-[11px] text-emerald-700 font-bold uppercase mb-1">Tổng Điểm</div>
+                        <div class="text-3xl font-black text-emerald-600" id="score-total">0</div>
+                    </div>
                 </div>
-                <div class="mt-6 pt-4 border-t border-slate-100">
-                    <ul class="space-y-3 text-sm">
-                        <li class="flex justify-between items-center">
-                            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-500"></span> Phần I (Trắc nghiệm)</span> 
-                            <span class="font-bold text-slate-800">12 câu</span>
-                        </li>
-                        <li class="flex justify-between items-center">
-                            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500"></span> Phần II (Đúng/Sai)</span> 
-                            <span class="font-bold text-slate-800">4 câu</span>
-                        </li>
-                        <li class="flex justify-between items-center">
-                            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Phần III (Trả lời ngắn)</span> 
-                            <span class="font-bold text-slate-800">6 câu</span>
-                        </li>
-                    </ul>
+
+                <div class="chart-container mb-6">
+                    <canvas id="resultChart"></canvas>
+                </div>
+                
+                <div class="bg-emerald-50 text-emerald-800 p-4 rounded-xl border border-emerald-200 text-sm font-medium leading-relaxed">
+                    <p>💡 <strong>Hướng dẫn:</strong> Hệ thống đã tự động chấm Phần I & II. Kéo xuống xem các câu sai (màu đỏ) và đối chiếu lời giải. <br><br>
+                    👉 <strong>Đặc biệt:</strong> Hãy chuyển sang tab <strong>Phần III</strong>, xem lời giải và bấm nút tự chấm điểm (Đúng/Sai) cho từng bài để hệ thống cập nhật điểm tổng kết 10đ nhé!</p>
                 </div>
             </div>
 
-            <div class="bg-indigo-50 rounded-2xl shadow-sm border border-indigo-100 p-6">
-                <h2 class="text-lg font-bold text-indigo-900 mb-3 flex items-center gap-2">
-                    <span>💡</span> Chiến Lược Ôn Tập
+            <!-- Structure Info (Visible initially, hidden after submit for space) -->
+            <div id="structure-info" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-b pb-3 flex items-center gap-2">
+                    <span>📊</span> Barem Chấm Điểm
                 </h2>
-                <div class="text-sm text-indigo-800 space-y-3">
-                    <p>Hệ thống cung cấp trải nghiệm làm bài tương tác dựa trên đề tài liệu gốc.</p>
-                    <ul class="list-disc pl-5 space-y-1">
-                        <li><strong>Bước 1:</strong> Chọn tab phần thi tương ứng.</li>
-                        <li><strong>Bước 2:</strong> Tự làm bài và chọn/điền đáp án.</li>
-                        <li><strong>Bước 3:</strong> Nhấn <em>"Xem Lời Giải"</em> để đối chiếu với đáp án chuẩn và phân tích các bước giải.</li>
+                <div>
+                    <ul class="space-y-4 text-sm">
+                        <li class="flex flex-col bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <div class="flex justify-between items-center">
+                                <span class="flex items-center gap-2 font-semibold text-indigo-700"><span class="text-xl">1️⃣</span> Phần I</span> 
+                                <span class="font-bold text-slate-800">12 câu (3.0đ)</span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1 pl-8">Mỗi câu đúng được cộng 0.25 điểm.</div>
+                        </li>
+                        <li class="flex flex-col bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <div class="flex justify-between items-center">
+                                <span class="flex items-center gap-2 font-semibold text-amber-600"><span class="text-xl">2️⃣</span> Phần II</span> 
+                                <span class="font-bold text-slate-800">4 câu (4.0đ)</span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1 pl-8 leading-tight">Điểm tính theo số ý đúng ở mỗi câu:<br> 1 ý (0.1đ) - 2 ý (0.25đ) - 3 ý (0.5đ) - 4 ý (1.0đ)</div>
+                        </li>
+                        <li class="flex flex-col bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <div class="flex justify-between items-center">
+                                <span class="flex items-center gap-2 font-semibold text-emerald-600"><span class="text-xl">3️⃣</span> Phần III</span> 
+                                <span class="font-bold text-slate-800">6 câu (3.0đ)</span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1 pl-8">Mỗi câu đúng được cộng 0.5 điểm. <br>(Phần này học sinh tự chấm sau khi nộp)</div>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -91,27 +135,62 @@
 
         <section class="lg:col-span-8 flex flex-col gap-6">
             
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-2">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 sticky top-[76px] z-30">
                 <div class="flex flex-wrap" id="tab-navigation">
-                    <button class="tab-btn active flex-1 py-3 px-4 text-slate-500 hover:text-indigo-600 transition-colors text-center font-medium" data-target="part1">
-                        Phần I: TN Khách Quan
+                    <button class="tab-btn active flex-1 py-3 px-2 md:px-4 text-slate-500 hover:text-indigo-600 transition-colors text-center font-medium text-sm md:text-base" data-target="part1">
+                        Phần I: Trắc Nghiệm
                     </button>
-                    <button class="tab-btn flex-1 py-3 px-4 text-slate-500 hover:text-indigo-600 transition-colors text-center font-medium" data-target="part2">
+                    <button class="tab-btn flex-1 py-3 px-2 md:px-4 text-slate-500 hover:text-indigo-600 transition-colors text-center font-medium text-sm md:text-base" data-target="part2">
                         Phần II: Đúng/Sai
                     </button>
-                    <button class="tab-btn flex-1 py-3 px-4 text-slate-500 hover:text-indigo-600 transition-colors text-center font-medium" data-target="part3">
+                    <button class="tab-btn flex-1 py-3 px-2 md:px-4 text-slate-500 hover:text-indigo-600 transition-colors text-center font-medium text-sm md:text-base" data-target="part3">
                         Phần III: Trả Lời Ngắn
                     </button>
                 </div>
             </div>
 
-            <div id="content-area" class="flex flex-col gap-6 pb-12">
+            <div id="content-area" class="flex flex-col gap-6">
+                <!-- Content injected by JS -->
+            </div>
+
+            <!-- Footer Submit Button -->
+            <div id="footer-actions" class="mt-4 mb-12 flex justify-end">
+                <button onclick="openConfirmModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95 text-lg flex items-center gap-3 w-full md:w-auto justify-center">
+                    <span class="text-2xl">✅</span> Nộp Bài & Xem Điểm
+                </button>
             </div>
 
         </section>
     </main>
 
+    <!-- Custom Modal for Confirmation -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 z-50 hidden flex justify-center items-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all scale-100">
+            <h3 class="text-xl font-bold text-slate-800 mb-3 flex items-center gap-2">
+                <span>⚠️</span> Xác nhận nộp bài
+            </h3>
+            <p id="confirm-message" class="text-slate-600 mb-6 leading-relaxed">Bạn có chắc chắn muốn nộp bài?</p>
+            <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <button onclick="closeConfirmModal()" class="px-5 py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Quay lại làm tiếp</button>
+                <button onclick="executeSubmission()" class="px-5 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-sm">Xác nhận Nộp Bài</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal for Time out -->
+    <div id="alert-modal" class="fixed inset-0 bg-rose-900/60 z-50 hidden flex justify-center items-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all scale-100 text-center">
+            <div class="text-5xl mb-4">⏰</div>
+            <h3 class="text-2xl font-bold text-rose-600 mb-2">Hết giờ làm bài!</h3>
+            <p class="text-slate-600 mb-6">Hệ thống đã tự động thu bài của bạn.</p>
+            <div class="flex justify-center border-t border-slate-100 pt-4">
+                <button onclick="closeAlertModal()" class="px-8 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors shadow-sm w-full">Xem kết quả</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // --- Data Definitions ---
         const examData = {
             part1: {
                 title: "Phần I. Câu Trắc Nghiệm Nhiều Phương Án Lựa Chọn",
@@ -133,92 +212,138 @@
             },
             part2: {
                 title: "Phần II. Câu Trắc Nghiệm Đúng Sai",
-                intro: "Thí sinh trả lời từ câu 13 đến câu 16. Trong mỗi ý a), b), c), d), chọn Đúng hoặc Sai.",
+                intro: "Thí sinh trả lời từ câu 13 đến câu 16. Trong mỗi ý a), b), c), d) tương ứng, chọn Đúng hoặc Sai.",
                 questions: [
                     {
                         id: 13,
                         text: "Cho biểu thức $A = \\frac{\\sqrt{x} + 5}{\\sqrt{x} + 2}$ với $x \\ge 0$. Xét tính đúng, sai của các khẳng định sau:",
                         parts: [
-                            { label: "a", text: "Khi $x = 9$, giá trị của biểu thức $A$ là $\\frac{8}{5}$.", ans: "ĐÚNG", sol: "Thay $x = 9$ (thỏa mãn ĐKXĐ) vào biểu thức $A$: <br> $A = \\frac{\\sqrt{9} + 5}{\\sqrt{9} + 2} = \\frac{3 + 5}{3 + 2} = \\frac{8}{5}$." },
-                            { label: "b", text: "Biểu thức $A$ có thể biến đổi thành dạng $A = 1 + \\frac{3}{\\sqrt{x} + 2}$.", ans: "ĐÚNG", sol: "Ta biến đổi: <br> $A = \\frac{\\sqrt{x} + 5}{\\sqrt{x} + 2} = \\frac{\\sqrt{x} + 2 + 3}{\\sqrt{x} + 2} = \\frac{\\sqrt{x} + 2}{\\sqrt{x} + 2} + \\frac{3}{\\sqrt{x} + 2} = 1 + \\frac{3}{\\sqrt{x} + 2}$." },
-                            { label: "c", text: "Với mọi $x \\ge 0$, ta luôn có $A \\ge 2$.", ans: "SAI", sol: "Ta có $x \\ge 0 \\Rightarrow \\sqrt{x} \\ge 0 \\Rightarrow \\sqrt{x} + 2 \\ge 2$. Suy ra $\\frac{3}{\\sqrt{x} + 2} \\le \\frac{3}{2}$. Do đó $A = 1 + \\frac{3}{\\sqrt{x} + 2} \\le 1 + \\frac{3}{2} = \\frac{5}{2}$. Ví dụ khi $x = 9 \\Rightarrow A = 1.6 < 2$. Vậy khẳng định $A \\ge 2$ với mọi $x$ là sai." },
-                            { label: "d", text: "Có đúng $2$ giá trị nguyên của $x$ để biểu thức $A$ nhận giá trị nguyên.", ans: "SAI", sol: "Để $A$ nhận giá trị nguyên thì $\\frac{3}{\\sqrt{x} + 2}$ phải là số nguyên. Vì $x \\ge 0 \\Rightarrow \\sqrt{x} + 2 \\ge 2$. Nên $\\sqrt{x} + 2$ phải là ước nguyên dương lớn hơn hoặc bằng $2$ của $3$. Ước nguyên dương của $3$ thỏa mãn điều kiện này chỉ có $3$. Ta có: $\\sqrt{x} + 2 = 3 \\Leftrightarrow \\sqrt{x} = 1 \\Leftrightarrow x = 1$ (thỏa mãn). Vậy chỉ có đúng $1$ giá trị nguyên của $x$ để $A$ nguyên. Khẳng định sai." }
+                            { label: "a", text: "Khi $x = 9$, giá trị của biểu thức $A$ là $\\frac{8}{5}$.", ans: "ĐÚNG", sol: "Thay $x = 9$ vào $A = \\frac{\\sqrt{9} + 5}{\\sqrt{9} + 2} = \\frac{3 + 5}{3 + 2} = \\frac{8}{5}$." },
+                            { label: "b", text: "Biểu thức $A$ có thể biến đổi thành dạng $A = 1 + \\frac{3}{\\sqrt{x} + 2}$.", ans: "ĐÚNG", sol: "Ta có: $A = \\frac{\\sqrt{x} + 2 + 3}{\\sqrt{x} + 2} = 1 + \\frac{3}{\\sqrt{x} + 2}$." },
+                            { label: "c", text: "Với mọi $x \\ge 0$, ta luôn có $A \\ge 2$.", ans: "SAI", sol: "$x \\ge 0 \\Rightarrow \\sqrt{x} + 2 \\ge 2 \\Rightarrow \\frac{3}{\\sqrt{x} + 2} \\le \\frac{3}{2}$. Vậy $A \\le 1 + 1.5 = 2.5$. Khẳng định $A \\ge 2$ với mọi x là sai (ví dụ x=9, A=1.6)." },
+                            { label: "d", text: "Có đúng $2$ giá trị nguyên của $x$ để biểu thức $A$ nhận giá trị nguyên.", ans: "SAI", sol: "Để $A$ nguyên thì $\\sqrt{x} + 2$ là ước của $3$. Mà $\\sqrt{x} + 2 \\ge 2 \\Rightarrow \\sqrt{x} + 2 = 3 \\Rightarrow x = 1$. Chỉ có 1 giá trị." }
                         ]
                     },
                     {
                         id: 14,
                         text: "Cho hàm số $y = x^2$ có đồ thị $(P)$ và đường thẳng $(d): y = 2x + 3$. Xét tính đúng/sai của các khẳng định sau:",
                         parts: [
-                            { label: "a", text: "Đồ thị $(P)$ đi qua điểm $M(-2; 4)$.", ans: "ĐÚNG", sol: "Thay $x = -2$ vào hàm số $y = x^2$, ta có $y = (-2)^2 = 4$. Vậy điểm $M(-2; 4)$ thuộc $(P)$." },
-                            { label: "b", text: "Đường thẳng $(d)$ cắt trục tung tại điểm có tung độ bằng $-3$.", ans: "SAI", sol: "Giao điểm của $(d)$ với trục tung có hoành độ $x = 0$. Thay $x = 0$ vào $(d) \\Rightarrow y = 2(0) + 3 = 3$. Tung độ phải bằng $3$." },
-                            { label: "c", text: "Đường thẳng $(d)$ cắt $(P)$ tại hai điểm phân biệt có hoành độ trái dấu.", ans: "ĐÚNG", sol: "Phương trình hoành độ giao điểm: $x^2 = 2x + 3 \\Leftrightarrow x^2 - 2x - 3 = 0$. Phương trình này có $a \\cdot c = 1 \\cdot (-3) = -3 < 0$ nên luôn có hai nghiệm phân biệt trái dấu." },
-                            { label: "d", text: "Gọi $A, B$ là hai giao điểm của $(d)$ và $(P)$. Diện tích tam giác $OAB$ bằng $12$.", ans: "SAI", sol: "Giải phương trình $x^2 - 2x - 3 = 0$ được $x_1 = -1 \\Rightarrow A(-1; 1)$ và $x_2 = 3 \\Rightarrow B(3; 9)$. Kẻ $AH, BK$ vuông góc trục $Oy$. Diện tích $S_{OAB} = 6$ (chứ không phải $12$)." }
+                            { label: "a", text: "Đồ thị $(P)$ đi qua điểm $M(-2; 4)$.", ans: "ĐÚNG", sol: "Thay $x = -2 \\Rightarrow y = (-2)^2 = 4$." },
+                            { label: "b", text: "Đường thẳng $(d)$ cắt trục tung tại điểm có tung độ bằng $-3$.", ans: "SAI", sol: "Giao với trục tung $x = 0 \\Rightarrow y = 3$. Tung độ phải bằng 3." },
+                            { label: "c", text: "Đường thẳng $(d)$ cắt $(P)$ tại hai điểm phân biệt có hoành độ trái dấu.", ans: "ĐÚNG", sol: "PT hoành độ: $x^2 - 2x - 3 = 0$. Có $a.c = 1.(-3) = -3 < 0$ nên có 2 nghiệm trái dấu." },
+                            { label: "d", text: "Gọi $A, B$ là hai giao điểm của $(d)$ và $(P)$. Diện tích tam giác $OAB$ bằng $12$.", ans: "SAI", sol: "Nghiệm $x_1 = -1 \\Rightarrow A(-1; 1)$; $x_2 = 3 \\Rightarrow B(3; 9)$. Tính được $S_{OAB} = 6$." }
                         ]
                     },
                     {
                         id: 15,
-                        text: "Cho đường tròn $(O; R)$ và điểm $M$ nằm ngoài đường tròn. Kẻ hai tiếp tuyến $MA, MB$ với $(O)$ ($A, B$ là tiếp điểm). Xét tính đúng sai:",
+                        text: "Cho đường tròn $(O; R)$ và điểm $M$ nằm ngoài đường tròn. Kẻ hai tiếp tuyến $MA, MB$ với $(O)$. Xét tính đúng sai:",
                         parts: [
-                            { label: "a", text: "Tứ giác $MAOB$ nội tiếp đường tròn.", ans: "ĐÚNG", sol: "Vì $MA, MB$ là tiếp tuyến nên $\\angle MAO = \\angle MBO = 90^\\circ$. Suy ra $\\angle MAO + \\angle MBO = 180^\\circ$, nên tứ giác nội tiếp." },
-                            { label: "b", text: "Kẻ đoạn thẳng $MO$ cắt đoạn $AB$ tại $H$. Ta có $\\angle MAB = \\angle MOA$.", ans: "ĐÚNG", sol: "Xét $\\Delta MAO$ vuông tại $A$, có đường cao $AH$. Ta có $\\angle MAB$ (tức $\\angle MAH$) và $\\angle MOA$ cùng phụ với $\\angle OMA$, do đó chúng bằng nhau." },
-                            { label: "c", text: "Kẻ cát tuyến $MCD$ bất kỳ không đi qua $O$. Ta có $MA^2 = MC \\cdot MD$.", ans: "ĐÚNG", sol: "Xét $\\Delta MAC$ và $\\Delta MDA$ có $\\angle M$ chung, $\\angle MAC = \\angle MDA$ (cùng chắn cung $AC$). Suy ra hai tam giác đồng dạng, ta có $\\frac{MA}{MD} = \\frac{MC}{MA} \\Rightarrow MA^2 = MC \\cdot MD$." },
-                            { label: "d", text: "Khi tam giác $MAB$ là tam giác đều, khoảng cách từ $M$ đến tâm $O$ là $R\\sqrt{3}$.", ans: "SAI", sol: "Nếu $\\Delta MAB$ đều thì $\\angle AMB = 60^\\circ \\Rightarrow \\angle AMO = 30^\\circ$. Trong tam giác vuông $MAO$, $\\sin 30^\\circ = \\frac{OA}{MO} \\Leftrightarrow \\frac{1}{2} = \\frac{R}{MO} \\Rightarrow MO = 2R$. Khẳng định $R\\sqrt{3}$ là sai." }
+                            { label: "a", text: "Tứ giác $MAOB$ nội tiếp đường tròn.", ans: "ĐÚNG", sol: "Vì $MA, MB$ là tiếp tuyến nên $\\angle MAO = \\angle MBO = 90^\\circ \\Rightarrow$ Tổng hai góc đối bằng $180^\\circ$." },
+                            { label: "b", text: "Kẻ đoạn thẳng $MO$ cắt đoạn $AB$ tại $H$. Ta có $\\angle MAB = \\angle MOA$.", ans: "ĐÚNG", sol: "Xét tam giác vuông $MAO$, $\\angle MAB$ và $\\angle MOA$ cùng phụ với $\\angle OMA$." },
+                            { label: "c", text: "Kẻ cát tuyến $MCD$ bất kỳ không đi qua $O$. Ta có $MA^2 = MC \\cdot MD$.", ans: "ĐÚNG", sol: "Chứng minh $\\Delta MAC \\sim \\Delta MDA$ (g.g) suy ra tỉ số tương ứng." },
+                            { label: "d", text: "Khi tam giác $MAB$ là tam giác đều, khoảng cách từ $M$ đến tâm $O$ là $R\\sqrt{3}$.", ans: "SAI", sol: "$\\Delta MAB$ đều $\\Rightarrow \\angle AMB = 60^\\circ \\Rightarrow \\angle AMO = 30^\\circ$. Trong tam giác vuông $AMO$, $\\sin 30^\\circ = \\frac{OA}{MO} \\Rightarrow \\frac{1}{2} = \\frac{R}{MO} \\Rightarrow MO = 2R$." }
                         ]
                     },
                     {
                         id: 16,
                         text: "Cho phương trình $x^2 - (2m+1)x + m^2 - 1 = 0$ ($m$ là tham số). Xét tính đúng/sai:",
                         parts: [
-                            { label: "a", text: "Khi $m = 0$, phương trình vô nghiệm.", ans: "SAI", sol: "Thay $m = 0$ vào, ta có phương trình: $x^2 - x - 1 = 0$. Có $\\Delta = (-1)^2 - 4(1)(-1) = 5 > 0$. Phương trình có 2 nghiệm phân biệt, vậy khẳng định vô nghiệm là sai." },
-                            { label: "b", text: "Phương trình luôn có hai nghiệm phân biệt với mọi giá trị của tham số $m$.", ans: "SAI", sol: "Ta có $\\Delta = [-(2m+1)]^2 - 4(1)(m^2-1) = 4m + 5$. Để phương trình có 2 nghiệm phân biệt thì $\\Delta > 0 \\Leftrightarrow 4m + 5 > 0 \\Leftrightarrow m > -\\frac{5}{4}$. Khẳng định 'với mọi $m$' là sai." },
-                            { label: "c", text: "Chỉ có duy nhất một giá trị nguyên của $m$ để phương trình có hai nghiệm trái dấu.", ans: "ĐÚNG", sol: "Để phương trình có 2 nghiệm trái dấu thì $a \\cdot c < 0 \\Leftrightarrow 1 \\cdot (m^2 - 1) < 0 \\Leftrightarrow -1 < m < 1$. Mà $m \\in \\mathbb{Z} \\Rightarrow m = 0$. Có đúng 1 giá trị nguyên thỏa mãn." },
-                            { label: "d", text: "Gọi $x_1, x_2$ là hai nghiệm của phương trình (khi $m \\ge -\\frac{5}{4}$). Giá trị nhỏ nhất của biểu thức $P = x_1^2 + x_2^2 - x_1x_2$ là $1$.", ans: "SAI", sol: "Biến đổi $P = (x_1 + x_2)^2 - 3x_1x_2 = (2m+1)^2 - 3(m^2-1) = m^2+4m+4 = (m+2)^2$. Vì $m \\ge -\\frac{5}{4}$ nên $m+2 \\ge \\frac{3}{4} \\Rightarrow (m+2)^2 \\ge \\frac{9}{16}$. Giá trị nhỏ nhất là $\\frac{9}{16}$." }
+                            { label: "a", text: "Khi $m = 0$, phương trình vô nghiệm.", ans: "SAI", sol: "Khi $m = 0$, pt là $x^2 - x - 1 = 0$, có $\\Delta = 5 > 0$ nên có 2 nghiệm phân biệt." },
+                            { label: "b", text: "Phương trình luôn có hai nghiệm phân biệt với mọi giá trị của tham số $m$.", ans: "SAI", sol: "$\\Delta = 4m + 5$. Để có 2 nghiệm pb thì $\\Delta > 0 \\Rightarrow m > -\\frac{5}{4}$, không phải với mọi $m$." },
+                            { label: "c", text: "Chỉ có duy nhất một giá trị nguyên của $m$ để phương trình có hai nghiệm trái dấu.", ans: "ĐÚNG", sol: "Hai nghiệm trái dấu $\\Leftrightarrow a.c < 0 \\Leftrightarrow m^2 - 1 < 0 \\Leftrightarrow -1 < m < 1$. Do $m \\in \\mathbb{Z} \\Rightarrow m = 0$ (có đúng 1 giá trị)." },
+                            { label: "d", text: "Gọi $x_1, x_2$ là hai nghiệm của phương trình (khi $m \\ge -\\frac{5}{4}$). Giá trị nhỏ nhất của biểu thức $P = x_1^2 + x_2^2 - x_1x_2$ là $1$.", ans: "SAI", sol: "Biến đổi $P = (m+2)^2$. Vì $m \\ge -\\frac{5}{4} \\Rightarrow m+2 \\ge \\frac{3}{4} \\Rightarrow P \\ge \\frac{9}{16}$. Giá trị nhỏ nhất là $\\frac{9}{16}$." }
                         ]
                     }
                 ]
             },
             part3: {
                 title: "Phần III. Câu Trả Lời Ngắn",
-                intro: "Thí sinh điền đáp án/ trả lời ngắn gọn vào chỗ trống hoặc trình bày vắn tắt. Bạn có thể dùng nháp bên dưới trước khi xem cách giải chi tiết.",
+                intro: "Thí sinh điền đáp án/ trả lời ngắn gọn vào chỗ trống hoặc trình bày vắn tắt.",
                 questions: [
-                    {
-                        id: 17,
-                        text: "Một chiếc thang dài $5m$ được dựa vào một bức tường đứng thẳng. Biết góc tạo bởi chiếc thang và mặt đất là $65^\\circ$. Tính khoảng cách từ chân thang đến chân tường (làm tròn đến chữ số thập phân thứ hai).",
-                        sol: "Gọi chiều dài chiếc thang là cạnh huyền $BC = 5m$, góc tạo bởi thang và mặt đất là góc nhọn $\\angle B = 65^\\circ$, khoảng cách từ chân thang đến chân tường là cạnh kề $AB$.<br>Xét tam giác vuông $ABC$ vuông tại $A$:<br>Ta có: $\\cos B = \\frac{AB}{BC} \\Rightarrow AB = BC \\cdot \\cos B$<br>$\\Rightarrow AB = 5 \\cdot \\cos 65^\\circ \\approx 2,11 \\text{ (m)}$<br><strong class='text-indigo-700 mt-2 block'>Đáp số: $2,11$ m</strong>"
-                    },
-                    {
-                        id: 18,
-                        text: "Một người quan sát đứng cách chân một tòa tháp $20m$ nhìn lên đỉnh tháp với góc nâng $60^\\circ$ (góc tạo bởi phương nhìn và phương nằm ngang). Biết khoảng cách từ mắt người quan sát đến mặt đất là $1,6m$. Tính chiều cao của tòa tháp (làm tròn đến chữ số thập phân thứ hai).",
-                        sol: "Mô hình hóa bài toán: Gọi $CD$ là chiều cao tháp, điểm đặt mắt quan sát là $A$, khoảng cách từ mắt đến mặt đất là $AB = 1,6m$, khoảng cách từ người đến tháp là $BC = 20m$.<br>Kẻ $AH \\perp CD$ tại $H$. Khi đó tứ giác $ABCH$ là hình chữ nhật nên $AH = BC = 20m$; $HC = AB = 1,6m$.<br>Góc nâng $\\angle DAH = 60^\\circ$.<br>Xét $\\Delta AHD$ vuông tại $H$:<br>Ta có: $\\tan(\\angle DAH) = \\frac{DH}{AH} \\Rightarrow DH = AH \\cdot \\tan 60^\\circ = 20 \\cdot \\sqrt{3} \\approx 34,64 \\text{ (m)}$.<br>Chiều cao của tòa tháp là:<br>$CD = DH + HC \\approx 34,64 + 1,6 = 36,24 \\text{ (m)}$.<br><strong class='text-indigo-700 mt-2 block'>Đáp số: $36,24$ m</strong>"
-                    },
-                    {
-                        id: 19,
-                        text: "Bác An gửi tiết kiệm $300$ triệu đồng vào ngân hàng với kỳ hạn $1$ năm, lãi suất $6\\%$/năm theo hình thức lãi kép (tiền lãi của năm trước được cộng gộp vào tiền vốn để tính lãi cho năm sau). Hỏi sau đúng $2$ năm, bác An rút cả vốn lẫn lãi được bao nhiêu triệu đồng?",
-                        sol: "Áp dụng công thức tính lãi kép: $T = A \\cdot (1 + r)^n$<br>Trong đó: $A = 300$ (triệu đồng), $r = 6\\% = 0,06$, $n = 2$ (năm).<br>Số tiền cả vốn lẫn lãi bác An nhận được sau 2 năm là:<br>$T = 300 \\cdot (1 + 0,06)^2 = 300 \\cdot 1,1236 = 337,08$ (triệu đồng).<br><strong class='text-indigo-700 mt-2 block'>Đáp số: $337,08$ triệu đồng</strong>"
-                    },
-                    {
-                        id: 20,
-                        text: "Gọi $x_1, x_2$ là hai nghiệm của phương trình $x^2 - 5x + 3 = 0$. Tính giá trị của biểu thức $T = x_1^2 + x_2^2$.",
-                        sol: "Phương trình có $\\Delta = (-5)^2 - 4(1)(3) = 13 > 0$ nên luôn có hai nghiệm phân biệt.<br>Áp dụng hệ thức Vi-ét, ta có: $x_1 + x_2 = 5$ và $x_1x_2 = 3$.<br>Ta biến đổi biểu thức: $T = x_1^2 + x_2^2 = (x_1 + x_2)^2 - 2x_1x_2$.<br>Thay số vào, ta được: $T = 5^2 - 2 \\cdot 3 = 25 - 6 = 19$.<br><strong class='text-indigo-700 mt-2 block'>Đáp số: $19$</strong>"
-                    },
-                    {
-                        id: 21,
-                        text: "Hai vòi nước cùng chảy vào một bể không có nước thì sau $6$ giờ đầy bể. Nếu mở vòi 1 chảy một mình trong $2$ giờ rồi khóa lại, mở tiếp vòi 2 chảy trong $3$ giờ thì được $\\frac{2}{5}$ bể. Hỏi nếu chảy một mình thì vòi 1 chảy đầy bể trong bao lâu?",
-                        sol: "Gọi thời gian vòi 1 và vòi 2 chảy một mình đầy bể lần lượt là $x$ và $y$ (giờ) ($x, y > 6$).<br>Trong 1 giờ, vòi 1 chảy được $\\frac{1}{x}$ bể, vòi 2 chảy được $\\frac{1}{y}$ bể. Cả hai vòi chảy được $\\frac{1}{6}$ bể.<br>Ta có hệ phương trình: $\\begin{cases} \\frac{1}{x} + \\frac{1}{y} = \\frac{1}{6} \\\\ \\frac{2}{x} + \\frac{3}{y} = \\frac{2}{5} \\end{cases}$<br>Đặt $u = \\frac{1}{x}, v = \\frac{1}{y}$. Hệ trở thành: $\\begin{cases} u + v = \\frac{1}{6} \\\\ 2u + 3v = \\frac{2}{5} \\end{cases} \\Rightarrow \\begin{cases} 2u + 2v = \\frac{1}{3} \\\\ 2u + 3v = \\frac{2}{5} \\end{cases} \\Rightarrow v = \\frac{2}{5} - \\frac{1}{3} = \\frac{1}{15}$<br>Suy ra $u = \\frac{1}{6} - \\frac{1}{15} = \\frac{1}{10}$.<br>Vậy $\\frac{1}{x} = \\frac{1}{10} \\Rightarrow x = 10$ (thỏa mãn ĐK).<br><strong class='text-indigo-700 mt-2 block'>Đáp số: $10$ giờ</strong>"
-                    },
-                    {
-                        id: 22,
-                        text: "Một quả bóng đá tiêu chuẩn có dạng hình cầu với bán kính khoảng $11cm$. Tính thể tích của quả bóng đó (Lấy $\\pi \\approx 3,14$ và làm tròn đến hàng đơn vị).",
-                        sol: "Thể tích của hình cầu được tính theo công thức: $V = \\frac{4}{3}\\pi R^3$<br>Trong đó $R = 11cm$ và $\\pi \\approx 3,14$.<br>Thay số vào, ta có: $V = \\frac{4}{3} \\cdot 3,14 \\cdot 11^3 = \\frac{4}{3} \\cdot 3,14 \\cdot 1331 \\approx 5572,45 \\text{ (cm}^3)$<br>Làm tròn đến hàng đơn vị ta được $5572 \\text{ cm}^3$.<br><strong class='text-indigo-700 mt-2 block'>Đáp số: $5572 \\text{ cm}^3$</strong>"
-                    }
+                    { id: 17, text: "Một chiếc thang dài $5m$ được dựa vào một bức tường đứng thẳng. Biết góc tạo bởi chiếc thang và mặt đất là $65^\\circ$. Tính khoảng cách từ chân thang đến chân tường (làm tròn đến chữ số thập phân thứ hai).", sol: "Khoảng cách $= 5 \\cdot \\cos 65^\\circ \\approx 2,11$ m." },
+                    { id: 18, text: "Một người quan sát đứng cách chân một tòa tháp $20m$ nhìn lên đỉnh tháp với góc nâng $60^\\circ$. Biết khoảng cách từ mắt người quan sát đến mặt đất là $1,6m$. Tính chiều cao của tòa tháp (làm tròn đến chữ số thập phân thứ hai).", sol: "Chiều cao $= 20 \\cdot \\tan 60^\\circ + 1,6 \\approx 36,24$ m." },
+                    { id: 19, text: "Bác An gửi tiết kiệm $300$ triệu đồng vào ngân hàng với kỳ hạn $1$ năm, lãi suất $6\\%$/năm theo hình thức lãi kép. Hỏi sau đúng $2$ năm, bác An rút cả vốn lẫn lãi được bao nhiêu triệu đồng?", sol: "$T = 300 \\cdot (1 + 0,06)^2 = 337,08$ triệu đồng." },
+                    { id: 20, text: "Gọi $x_1, x_2$ là hai nghiệm của phương trình $x^2 - 5x + 3 = 0$. Tính giá trị của biểu thức $T = x_1^2 + x_2^2$.", sol: "$T = (x_1+x_2)^2 - 2x_1x_2 = 5^2 - 2(3) = 19$." },
+                    { id: 21, text: "Hai vòi nước cùng chảy vào một bể không có nước thì sau $6$ giờ đầy bể. Nếu mở vòi 1 chảy trong $2$ giờ, vòi 2 chảy trong $3$ giờ thì được $\\frac{2}{5}$ bể. Hỏi vòi 1 chảy một mình đầy bể trong bao lâu?", sol: "Giải hệ phương trình ta tìm được thời gian Vòi 1 chảy một mình đầy bể là 10 giờ." },
+                    { id: 22, text: "Một quả bóng đá tiêu chuẩn có dạng hình cầu với bán kính khoảng $11cm$. Tính thể tích của quả bóng đó (Lấy $\\pi \\approx 3,14$ và làm tròn đến hàng đơn vị).", sol: "$V = \\frac{4}{3} \\cdot 3,14 \\cdot 11^3 \\approx 5572 \\text{ cm}^3$." }
                 ]
             }
         };
 
+        // --- Application State ---
+        let isSubmitted = false;
+        let timeLeft = 90 * 60; // 90 minutes
+        let timerInterval;
+        let currentActiveTab = 'part1';
+
+        const userAnswers = {
+            part1: {}, 
+            part2: {}, 
+            part3: {}, 
+            part3Grade: {} // Stores true/false for self-grading
+        };
+
+        window.p1Score = 0;
+        window.p2Score = 0;
+
+        // --- DOM Elements ---
         const contentArea = document.getElementById('content-area');
         const tabBtns = document.querySelectorAll('.tab-btn');
+        const timerDisplay = document.getElementById('timer-display');
+        const submitBtn = document.getElementById('submit-header-btn');
+        const resultDashboard = document.getElementById('result-dashboard');
+        const structureInfo = document.getElementById('structure-info');
+        
+        // Modal Elements
+        const confirmModal = document.getElementById('confirm-modal');
+        const confirmMessage = document.getElementById('confirm-message');
+        const alertModal = document.getElementById('alert-modal');
 
-        function renderKaTeX() {
+        let resultChartInstance = null;
+
+        // --- Initialization ---
+        function initApp() {
+            startTimer();
+            renderTab(currentActiveTab);
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    tabBtns.forEach(b => b.classList.remove('active', 'border-indigo-600', 'text-indigo-600'));
+                    e.target.classList.add('active', 'border-indigo-600', 'text-indigo-600');
+                    currentActiveTab = e.target.getAttribute('data-target');
+                    renderTab(currentActiveTab);
+                });
+            });
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.textContent = "00:00";
+                    if (!isSubmitted) {
+                        alertModal.classList.remove('hidden');
+                        processSubmission();
+                    }
+                    return;
+                }
+                timeLeft--;
+                const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                const s = (timeLeft % 60).toString().padStart(2, '0');
+                timerDisplay.textContent = `${m}:${s}`;
+                
+                if(timeLeft < 300) {
+                    timerDisplay.parentElement.classList.replace('border-indigo-500', 'border-red-500');
+                    timerDisplay.parentElement.classList.replace('bg-indigo-900', 'bg-red-900');
+                }
+            }, 1000);
+        }
+
+        function renderTab(target) {
+            if (target === 'part1') renderPart1();
+            if (target === 'part2') renderPart2();
+            if (target === 'part3') renderPart3();
+            
             renderMathInElement(contentArea, {
                 delimiters: [
                     {left: "$$", right: "$$", display: true},
@@ -226,21 +351,6 @@
                 ],
                 throwOnError: false
             });
-        }
-
-        function toggleSolutionBlock(id, btnElement) {
-            const solBlock = document.getElementById(id);
-            if (solBlock.classList.contains('show')) {
-                solBlock.classList.remove('show');
-                btnElement.innerHTML = '<span>👁️</span> Xem Lời Giải';
-                btnElement.classList.replace('bg-slate-200', 'bg-indigo-100');
-                btnElement.classList.replace('text-slate-700', 'text-indigo-800');
-            } else {
-                solBlock.classList.add('show');
-                btnElement.innerHTML = '<span>🙈</span> Ẩn Lời Giải';
-                btnElement.classList.replace('bg-indigo-100', 'bg-slate-200');
-                btnElement.classList.replace('text-indigo-800', 'text-slate-700');
-            }
         }
 
         function renderHeader(title, intro) {
@@ -252,6 +362,7 @@
             `;
         }
 
+        // --- Render Part 1 ---
         function renderPart1() {
             let html = renderHeader(examData.part1.title, examData.part1.intro);
             const letters = ['A', 'B', 'C', 'D'];
@@ -259,11 +370,30 @@
             examData.part1.questions.forEach((q) => {
                 let optionsHtml = '';
                 q.options.forEach((opt, oIndex) => {
+                    const isChecked = userAnswers.part1[q.id] === oIndex ? 'checked' : '';
+                    const disabledStr = isSubmitted ? 'disabled' : '';
+                    
+                    let labelClasses = "flex items-center border border-slate-200 rounded-xl p-3 cursor-pointer transition-all math-block text-sm ";
+                    let badgeClasses = "opt-badge font-bold mr-3 w-6 h-6 flex shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors ";
+                    
+                    if (isSubmitted) {
+                        labelClasses += "submitted-label cursor-default ";
+                        if (oIndex === q.correct) {
+                            labelClasses += "ans-correct";
+                        } else if (isChecked) {
+                            labelClasses += "ans-incorrect";
+                        } else {
+                            labelClasses += "opacity-60 bg-slate-50";
+                        }
+                    } else {
+                        labelClasses += "hover:bg-slate-50 peer-checked:bg-indigo-50 peer-checked:border-indigo-400 peer-checked:text-indigo-900";
+                    }
+
                     optionsHtml += `
                         <div class="relative">
-                            <input type="radio" name="q${q.id}" id="q${q.id}_${oIndex}" class="peer hidden">
-                            <label for="q${q.id}_${oIndex}" class="flex items-center border border-slate-200 rounded-xl p-3 cursor-pointer hover:bg-slate-50 peer-checked:bg-indigo-50 peer-checked:border-indigo-400 peer-checked:text-indigo-900 transition-all math-block text-sm">
-                                <span class="font-bold mr-3 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 peer-checked:bg-indigo-600 peer-checked:text-white transition-colors">${letters[oIndex]}</span> 
+                            <input type="radio" name="q${q.id}" id="q${q.id}_${oIndex}" class="peer hidden" ${isChecked} ${disabledStr} onchange="saveAnswer1(${q.id}, ${oIndex})">
+                            <label for="q${q.id}_${oIndex}" class="${labelClasses}">
+                                <span class="${badgeClasses}">${letters[oIndex]}</span> 
                                 <span>${opt}</span>
                             </label>
                         </div>
@@ -271,7 +401,7 @@
                 });
 
                 html += `
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow mb-6">
                         <div class="flex items-center justify-between mb-4 border-b pb-3">
                             <h3 class="font-bold text-lg text-slate-800">Câu ${q.id}</h3>
                         </div>
@@ -279,6 +409,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             ${optionsHtml}
                         </div>
+                        ${isSubmitted ? `
                         <div class="border-t pt-4 mt-2">
                             <button onclick="toggleSolutionBlock('sol-${q.id}', this)" class="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 font-semibold py-2.5 px-5 rounded-xl transition-colors flex items-center gap-2 text-sm">
                                 <span>👁️</span> Xem Lời Giải
@@ -290,59 +421,75 @@
                                 <div class="text-slate-700 math-block leading-relaxed border-t border-slate-200 pt-3">${q.sol}</div>
                             </div>
                         </div>
+                        ` : ''}
                     </div>
                 `;
             });
             contentArea.innerHTML = html;
-            renderKaTeX();
         }
 
-        window.toggleTF = function(btn, type) {
-            const container = btn.closest('.tf-container');
-            const btns = container.querySelectorAll('.tf-btn');
-            btns.forEach(b => b.classList.remove('active-true', 'active-false'));
-            if(type === 'true') {
-                btn.classList.add('active-true');
-            } else {
-                btn.classList.add('active-false');
-            }
-        };
-
+        // --- Render Part 2 ---
         function renderPart2() {
             let html = renderHeader(examData.part2.title, examData.part2.intro);
             
             examData.part2.questions.forEach((q) => {
                 let partsHtml = '';
                 q.parts.forEach((p) => {
+                    const ansKey = `${q.id}-${p.label}`;
+                    const uAns = userAnswers.part2[ansKey];
+                    
+                    let btnTrueClasses = "tf-btn border border-slate-300 text-slate-600 px-4 py-1.5 rounded-md font-medium text-sm transition ";
+                    let btnFalseClasses = "tf-btn border border-slate-300 text-slate-600 px-4 py-1.5 rounded-md font-medium text-sm transition ";
+                    
+                    if (isSubmitted) {
+                        btnTrueClasses += "submitted-tf cursor-default ";
+                        btnFalseClasses += "submitted-tf cursor-default ";
+                        
+                        if (p.ans === 'ĐÚNG') {
+                            btnTrueClasses += "bg-emerald-500 text-white border-emerald-500 shadow-sm ring-2 ring-emerald-200 font-bold ";
+                            if (uAns === 'SAI') btnFalseClasses += "bg-rose-500 text-white border-rose-500 font-bold ";
+                            else btnFalseClasses += "opacity-40 bg-slate-100 text-slate-400 ";
+                        } else {
+                            btnFalseClasses += "bg-emerald-500 text-white border-emerald-500 shadow-sm ring-2 ring-emerald-200 font-bold ";
+                            if (uAns === 'ĐÚNG') btnTrueClasses += "bg-rose-500 text-white border-rose-500 font-bold ";
+                            else btnTrueClasses += "opacity-40 bg-slate-100 text-slate-400 ";
+                        }
+                    } else {
+                        btnTrueClasses += "hover:bg-emerald-50 hover:text-emerald-700 ";
+                        btnFalseClasses += "hover:bg-rose-50 hover:text-rose-700 ";
+                        if (uAns === 'ĐÚNG') btnTrueClasses += "active-true";
+                        if (uAns === 'SAI') btnFalseClasses += "active-false";
+                    }
+
                     partsHtml += `
-                        <div class="border border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:border-indigo-200 transition-colors">
+                        <div class="border border-slate-200 rounded-xl p-5 bg-white shadow-sm transition-colors ${isSubmitted && uAns !== p.ans && uAns !== undefined ? 'border-rose-300 bg-rose-50/50' : ''}">
                             <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-5">
                                 <div class="math-block text-slate-800 flex-1 text-base leading-relaxed">
                                     <span class="font-bold text-indigo-600 mr-2 bg-indigo-50 w-8 h-8 inline-flex items-center justify-center rounded-full">${p.label}</span> 
                                     ${p.text}
                                 </div>
                                 <div class="flex gap-2 shrink-0 tf-container bg-slate-50 p-1 rounded-lg border border-slate-100">
-                                    <button onclick="toggleTF(this, 'true')" class="tf-btn border border-slate-300 text-slate-600 px-4 py-1.5 rounded-md hover:bg-emerald-50 hover:text-emerald-700 transition font-medium text-sm">Đúng</button>
-                                    <button onclick="toggleTF(this, 'false')" class="tf-btn border border-slate-300 text-slate-600 px-4 py-1.5 rounded-md hover:bg-red-50 hover:text-red-700 transition font-medium text-sm">Sai</button>
+                                    <button ${isSubmitted ? 'disabled' : ''} onclick="saveAnswer2(this, ${q.id}, '${p.label}', 'ĐÚNG')" class="${btnTrueClasses}">Đúng</button>
+                                    <button ${isSubmitted ? 'disabled' : ''} onclick="saveAnswer2(this, ${q.id}, '${p.label}', 'SAI')" class="${btnFalseClasses}">Sai</button>
                                 </div>
                             </div>
+                            
+                            ${isSubmitted ? `
                             <div class="mt-5 pt-4 border-t border-slate-100">
                                 <button onclick="toggleSolutionBlock('sol-${q.id}-${p.label}', this)" class="text-sm bg-slate-100 text-slate-600 font-semibold py-1.5 px-4 rounded-lg hover:bg-slate-200 transition">Hiển thị giải thích</button>
                                 <div id="sol-${q.id}-${p.label}" class="solution-block mt-3">
                                     <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm">
-                                        <div class="flex items-center gap-2 mb-2 pb-2 border-b border-indigo-100">
-                                            <span class="font-bold ${p.ans === 'ĐÚNG' ? 'text-emerald-600' : 'text-rose-600'}">Kết luận: Khẳng định này ${p.ans}</span>
-                                        </div>
                                         <div class="text-slate-700 math-block leading-relaxed">${p.sol}</div>
                                     </div>
                                 </div>
                             </div>
+                            ` : ''}
                         </div>
                     `;
                 });
 
                 html += `
-                    <div class="bg-slate-50 rounded-2xl shadow-inner border border-slate-200 p-6">
+                    <div class="bg-slate-50 rounded-2xl shadow-inner border border-slate-200 p-6 mb-6">
                         <div class="flex items-center justify-between mb-4 border-b border-slate-300 pb-3">
                             <h3 class="font-bold text-lg text-slate-800">Câu ${q.id}</h3>
                         </div>
@@ -354,99 +501,257 @@
                 `;
             });
             contentArea.innerHTML = html;
-            renderKaTeX();
         }
 
+        // --- Render Part 3 ---
         function renderPart3() {
             let html = renderHeader(examData.part3.title, examData.part3.intro);
             
             examData.part3.questions.forEach((q) => {
+                const uAns = userAnswers.part3[q.id] || '';
+                
                 html += `
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow mb-6">
                         <div class="flex items-center justify-between mb-4 border-b pb-3">
                             <h3 class="font-bold text-lg text-slate-800">Câu ${q.id}</h3>
                         </div>
                         <div class="text-slate-800 mb-5 math-block text-base leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100">${q.text}</div>
                         
                         <div class="mb-5">
-                            <label class="block text-sm font-semibold text-slate-600 mb-2">Khu vực nháp / Ghi chú kết quả:</label>
-                            <textarea placeholder="Ghi chú các bước tính toán hoặc đáp số cuối cùng của bạn..." class="w-full border border-slate-300 rounded-xl p-4 text-sm h-28 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-slate-50"></textarea>
+                            <label class="block text-sm font-semibold text-slate-600 mb-2">Đáp án của bạn:</label>
+                            <textarea 
+                                placeholder="Nhập kết quả cuối cùng hoặc các bước tính..." 
+                                class="w-full border border-slate-300 rounded-xl p-4 text-sm h-20 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-slate-50 disabled:bg-slate-100 disabled:text-slate-500"
+                                oninput="saveAnswer3(${q.id}, this.value)"
+                                ${isSubmitted ? 'disabled' : ''}
+                            >${uAns}</textarea>
                         </div>
 
-                        <div class="border-t pt-4 mt-2">
-                            <button onclick="toggleSolutionBlock('sol-${q.id}', this)" class="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 font-semibold py-2.5 px-5 rounded-xl transition-colors flex items-center gap-2 text-sm">
-                                <span>✍️</span> Xem Lời Giải Chi Tiết
+                        ${isSubmitted ? `
+                        <div class="border-t pt-4 mt-2 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                            <button onclick="toggleSolutionBlock('sol-${q.id}', this)" class="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 font-semibold py-2.5 px-5 rounded-xl transition-colors flex items-center gap-2 text-sm justify-center w-full sm:w-auto">
+                                <span>👁️</span> Xem Lời Giải
                             </button>
-                        </div>
-                        <div id="sol-${q.id}" class="solution-block mt-4">
-                            <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
-                                <h4 class="font-bold text-indigo-900 mb-3 border-b border-indigo-200 pb-2">Hướng dẫn giải:</h4>
-                                <div class="text-slate-800 math-block leading-relaxed space-y-2">${q.sol}</div>
+                            
+                            <div class="flex items-center justify-between sm:justify-end gap-3 bg-amber-50 px-4 py-2 rounded-lg border border-amber-200 w-full sm:w-auto">
+                                <span class="text-sm font-bold text-amber-800">Tự chấm:</span>
+                                <div class="flex gap-2">
+                                    <button onclick="setSelfGrade(${q.id}, true)" id="btn-grade-true-${q.id}" class="${userAnswers.part3Grade[q.id] === true ? 'bg-emerald-500 text-white' : 'border border-emerald-500 text-emerald-700 bg-white hover:bg-emerald-50'} px-3 py-1 rounded-md transition font-medium text-sm">Đúng (+0.5đ)</button>
+                                    <button onclick="setSelfGrade(${q.id}, false)" id="btn-grade-false-${q.id}" class="${userAnswers.part3Grade[q.id] === false ? 'bg-rose-500 text-white' : 'border border-rose-500 text-rose-700 bg-white hover:bg-rose-50'} px-3 py-1 rounded-md transition font-medium text-sm">Sai (0đ)</button>
+                                </div>
                             </div>
                         </div>
+                        <div id="sol-${q.id}" class="solution-block mt-4">
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+                                <h4 class="font-bold text-emerald-900 mb-2 border-b border-emerald-200 pb-2">Đáp án tham khảo:</h4>
+                                <div class="text-slate-800 math-block leading-relaxed space-y-2 font-medium">${q.sol}</div>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 `;
             });
             contentArea.innerHTML = html;
-            renderKaTeX();
         }
 
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                tabBtns.forEach(b => b.classList.remove('active', 'border-indigo-600', 'text-indigo-600'));
-                e.target.classList.add('active', 'border-indigo-600', 'text-indigo-600');
-                
-                const target = e.target.getAttribute('data-target');
-                if (target === 'part1') renderPart1();
-                if (target === 'part2') renderPart2();
-                if (target === 'part3') renderPart3();
+        // --- User Interaction Handlers ---
+        window.saveAnswer1 = function(qId, oIndex) {
+            if(isSubmitted) return;
+            userAnswers.part1[qId] = oIndex;
+        }
+
+        window.saveAnswer2 = function(btnElement, qId, label, val) {
+            if(isSubmitted) return;
+            userAnswers.part2[`${qId}-${label}`] = val;
+            
+            const container = btnElement.closest('.tf-container');
+            const btns = container.querySelectorAll('.tf-btn');
+            btns.forEach(b => b.classList.remove('active-true', 'active-false'));
+            if(val === 'ĐÚNG') btnElement.classList.add('active-true');
+            else btnElement.classList.add('active-false');
+        }
+
+        window.saveAnswer3 = function(qId, text) {
+            if(isSubmitted) return;
+            userAnswers.part3[qId] = text;
+        }
+
+        window.setSelfGrade = function(qId, isCorrect) {
+            userAnswers.part3Grade[qId] = isCorrect;
+            
+            const btnTrue = document.getElementById(`btn-grade-true-${qId}`);
+            const btnFalse = document.getElementById(`btn-grade-false-${qId}`);
+            
+            if (isCorrect) {
+                btnTrue.className = "bg-emerald-500 text-white px-3 py-1 rounded-md transition font-medium text-sm";
+                btnFalse.className = "border border-rose-500 text-rose-700 bg-white hover:bg-rose-50 px-3 py-1 rounded-md transition font-medium text-sm";
+            } else {
+                btnTrue.className = "border border-emerald-500 text-emerald-700 bg-white hover:bg-emerald-50 px-3 py-1 rounded-md transition font-medium text-sm";
+                btnFalse.className = "bg-rose-500 text-white px-3 py-1 rounded-md transition font-medium text-sm";
+            }
+            
+            updateTotalScore();
+        }
+
+        window.toggleSolutionBlock = function(id, btnElement) {
+            const solBlock = document.getElementById(id);
+            if (solBlock.classList.contains('show')) {
+                solBlock.classList.remove('show');
+                btnElement.innerHTML = '<span>👁️</span> Xem Lời Giải';
+                btnElement.classList.replace('bg-slate-200', 'bg-indigo-100');
+                btnElement.classList.replace('text-slate-700', 'text-indigo-800');
+            } else {
+                solBlock.classList.add('show');
+                btnElement.innerHTML = '<span>🙈</span> Đóng Lời Giải';
+                btnElement.classList.replace('bg-indigo-100', 'bg-slate-200');
+                btnElement.classList.replace('text-indigo-800', 'text-slate-700');
+            }
+        }
+
+        // --- Custom Modals for Iframe compatibility ---
+        window.openConfirmModal = function() {
+            if (isSubmitted) return;
+            
+            const answeredP1 = Object.keys(userAnswers.part1).length;
+            const answeredP2 = Object.keys(userAnswers.part2).length;
+            const totalRequired = examData.part1.questions.length + (examData.part2.questions.length * 4);
+            
+            if (answeredP1 + answeredP2 < totalRequired) {
+                confirmMessage.innerHTML = `Bạn mới làm <strong>${answeredP1 + answeredP2}/${totalRequired}</strong> ý trắc nghiệm. Vẫn còn câu chưa làm.<br><br>Bạn có chắc chắn muốn nộp bài ngay lúc này?`;
+            } else {
+                confirmMessage.innerHTML = "Bạn đã hoàn thành các câu trắc nghiệm. Xác nhận nộp bài để xem điểm?";
+            }
+            
+            confirmModal.classList.remove('hidden');
+        }
+
+        window.closeConfirmModal = function() {
+            confirmModal.classList.add('hidden');
+        }
+
+        window.closeAlertModal = function() {
+            alertModal.classList.add('hidden');
+        }
+
+        window.executeSubmission = function() {
+            closeConfirmModal();
+            processSubmission();
+        }
+
+        // --- Submission & Scoring Core ---
+        function processSubmission() {
+            isSubmitted = true;
+            clearInterval(timerInterval);
+            
+            // UI Updates
+            submitBtn.classList.replace('bg-emerald-500', 'bg-slate-500');
+            submitBtn.classList.replace('hover:bg-emerald-400', 'hover:bg-slate-500');
+            submitBtn.innerHTML = "<span>🔒</span> Đã Nộp Bài";
+            submitBtn.disabled = true;
+            submitBtn.classList.remove('hover:scale-105', 'active:scale-95');
+            
+            const footerBtn = document.getElementById('footer-actions');
+            if(footerBtn) footerBtn.style.display = 'none';
+
+            // Grade Part 1 (0.25 pts per correct answer)
+            window.p1Score = 0;
+            let p1Correct = 0, p1Incorrect = 0, p1Unanswered = 0;
+            examData.part1.questions.forEach(q => {
+                if (userAnswers.part1[q.id] === undefined) p1Unanswered++;
+                else if (userAnswers.part1[q.id] === q.correct) {
+                    p1Correct++;
+                    window.p1Score += 0.25;
+                } else p1Incorrect++;
             });
-        });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            renderPart1();
+            // Grade Part 2 (Scale: 0.1, 0.25, 0.5, 1.0)
+            window.p2Score = 0;
+            let p2Correct = 0, p2Incorrect = 0, p2Unanswered = 0;
+            examData.part2.questions.forEach(q => {
+                let qCorrect = 0;
+                q.parts.forEach(p => {
+                    const uAns = userAnswers.part2[`${q.id}-${p.label}`];
+                    if (uAns === undefined) p2Unanswered++;
+                    else if (uAns === p.ans) { p2Correct++; qCorrect++; }
+                    else p2Incorrect++;
+                });
+                if (qCorrect === 1) window.p2Score += 0.1;
+                else if (qCorrect === 2) window.p2Score += 0.25;
+                else if (qCorrect === 3) window.p2Score += 0.5;
+                else if (qCorrect === 4) window.p2Score += 1.0;
+            });
 
-            const ctx = document.getElementById('examStructureChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'doughnut',
+            // Initial Part 3 calculation & DOM update
+            userAnswers.part3Grade = {}; 
+            updateTotalScore(); 
+
+            // Show Result Dashboard
+            document.getElementById('structure-info').style.display = 'none';
+            resultDashboard.classList.add('show');
+
+            // Draw Chart
+            const ctx = document.getElementById('resultChart').getContext('2d');
+            resultChartInstance = new Chart(ctx, {
+                type: 'pie',
                 data: {
-                    labels: ['Phần I: Trắc nghiệm', 'Phần II: Đúng/Sai', 'Phần III: Trả lời ngắn'],
+                    labels: ['Ý đúng', 'Ý sai', 'Chưa làm'],
                     datasets: [{
-                        data: [12, 4, 6],
-                        backgroundColor: [
-                            '#6366f1', 
-                            '#f59e0b', 
-                            '#10b981'  
-                        ],
+                        data: [p1Correct + p2Correct, p1Incorrect + p2Incorrect, p1Unanswered + p2Unanswered],
+                        backgroundColor: ['#10b981', '#f43f5e', '#cbd5e1'],
                         borderWidth: 2,
                         borderColor: '#ffffff',
-                        hoverOffset: 6
+                        hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { position: 'bottom', labels: { font: { family: 'system-ui', size: 13 } } },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                            titleFont: { size: 13, family: 'system-ui' },
-                            bodyFont: { size: 14, family: 'system-ui', weight: 'bold' },
-                            padding: 12,
-                            cornerRadius: 8,
                             callbacks: {
-                                label: function(context) {
-                                    return ' ' + context.raw + ' câu hỏi';
-                                }
+                                label: function(context) { return ' ' + context.label + ': ' + context.raw + ' câu/ý'; }
                             }
                         }
-                    },
-                    cutout: '70%'
+                    }
                 }
             });
-        });
+
+            // Switch to Part 1 for review and scroll up
+            currentActiveTab = 'part1';
+            tabBtns.forEach(b => {
+                b.classList.remove('active', 'border-indigo-600', 'text-indigo-600');
+                if(b.getAttribute('data-target') === 'part1') b.classList.add('active', 'border-indigo-600', 'text-indigo-600');
+            });
+            
+            renderTab(currentActiveTab);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.updateTotalScore = function() {
+            let p3Score = 0;
+            let p3GradedCount = 0;
+            examData.part3.questions.forEach(q => {
+                if (userAnswers.part3Grade[q.id] === true) p3Score += 0.5;
+                if (userAnswers.part3Grade[q.id] !== undefined) p3GradedCount++;
+            });
+            
+            document.getElementById('score-p1').innerText = `${window.p1Score.toFixed(2)} / 3.0`;
+            document.getElementById('score-p2').innerText = `${window.p2Score.toFixed(2)} / 4.0`;
+            document.getElementById('score-p3').innerText = `${p3Score.toFixed(2)} / 3.0`;
+            
+            const totalScore = (window.p1Score + window.p2Score + p3Score).toFixed(2);
+            document.getElementById('score-total').innerText = totalScore;
+            
+            if (p3GradedCount === 6) {
+                const statusEl = document.getElementById('p3-status');
+                statusEl.innerText = "(Đã chấm xong)";
+                statusEl.classList.replace('text-amber-500', 'text-emerald-600');
+                statusEl.classList.add('font-bold');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
 
     </script>
 </body>
